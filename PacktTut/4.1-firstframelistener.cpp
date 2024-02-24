@@ -8,10 +8,42 @@
 #include "OgreRTShaderSystem.h"
 #include "OgreBitesConfigDialog.h"
 #include "OgreConfigDialog.h"
+#include "OgreFrameListener.h"
+
+class Example25FrameListener : public Ogre::FrameListener
+{
+
+public:
+	Example25FrameListener() {
+		MyFrameListener = NULL;
+		_node = NULL;
+	}
+	~Example25FrameListener() {
+		if (MyFrameListener) {
+			delete MyFrameListener;
+		}
+	}
+
+	Example25FrameListener(Ogre::SceneNode* node) {
+		_node = node;
+	}
+
+	bool frameStarted(const Ogre::FrameEvent& evt)
+	{
+		_node->translate(Ogre::Vector3(0.1, 0, 0));
+		return true;
+	}
+
+	Ogre::FrameListener* MyFrameListener;
+
+private:
+	Ogre::SceneNode* _node;
+};
 
 class TutorialApplication
 	: public OgreBites::ApplicationContext,
-	public OgreBites::InputListener
+	public OgreBites::InputListener,
+	public Example25FrameListener
 
 {
 public:
@@ -20,14 +52,20 @@ public:
 
 	void setup();
 	bool keyPressed(const OgreBites::KeyboardEvent& evt);
+	void createFramelistener() {
+		MyFrameListener = new Example25FrameListener(_SinbadNode);
+		getRoot()->addFrameListener(MyFrameListener);
+	}
 
+private:
+	Ogre::SceneNode* _SinbadNode;
 };
 
 TutorialApplication::TutorialApplication()
 	: OgreBites::ApplicationContext("OgreTutorialApp")
 
 {
-
+	_SinbadNode = NULL;
 }
 
 TutorialApplication::~TutorialApplication() 
@@ -80,11 +118,13 @@ void TutorialApplication::setup()
 	Ogre::SceneNode* camNode = scnMgr->getRootSceneNode()->createChildSceneNode();
 	Ogre::Camera* cam = scnMgr->createCamera("myCam");
 
-	camNode->setPosition(0, 200, 400);
-	camNode->lookAt(Ogre::Vector3(50, 50, 0), Ogre::Node::TransformSpace::TS_WORLD);
+	camNode->setPosition(0, 100, 200);
+	camNode->lookAt(Ogre::Vector3(0, 0, 0), Ogre::Node::TransformSpace::TS_WORLD);
 
 	cam->setNearClipDistance(5);
 	camNode->attachObject(cam);
+
+	//cam->setPolygonMode(Ogre::PM_POINTS);
 
 
 	// create a viewport
@@ -107,7 +147,7 @@ void TutorialApplication::setup()
 	(
 		"plane",
 		Ogre::ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
-		plane, 1500, 1500, 20, 20, true, 1, 5, 5, Ogre::Vector3::UNIT_Z
+		plane, 1500, 1500, 200, 200, true, 1, 5, 5, Ogre::Vector3::UNIT_Z
 	);
 
 	// creating entities
@@ -149,111 +189,34 @@ void TutorialApplication::setup()
 	We simply say that the z-axis should be "up" for our plane.
 	*/
 
-	//2 - Nodes
+	// Nodes
 
-	Ogre::SceneNode* lightnode = scnMgr->createSceneNode("Node1");
-	scnMgr->getRootSceneNode()->addChild(lightnode);
-	lightnode->setPosition(-25, 100, 0);
-	lightnode->setDirection(Ogre::Vector3(1, -1, 0));
+	Ogre::SceneNode* directionallightnode = scnMgr->createSceneNode("Node1");
+	scnMgr->getRootSceneNode()->addChild(directionallightnode);
+	directionallightnode->setDirection(Ogre::Vector3(1, -1, 0));
 
-	Ogre::SceneNode* spherenode = scnMgr->createSceneNode("Node11");
-	scnMgr->getRootSceneNode()->addChild(spherenode);
-	spherenode->setPosition(-110, 100, -55);
-
-	Ogre::SceneNode* lightnode2 = scnMgr->createSceneNode("Node2");
-	scnMgr->getRootSceneNode()->addChild(lightnode2);
-	lightnode2->setPosition(125, 100, 0);
-	lightnode2->setDirection(Ogre::Vector3(-1, -1, 0));
-
-	Ogre::SceneNode* spherenode2 = scnMgr->createSceneNode("Node21");
-	scnMgr->getRootSceneNode()->addChild(spherenode2);
-	spherenode2->setPosition(185, 100, -55);
-
-	Ogre::SceneNode* lightnode3 = scnMgr->createSceneNode("Node3");
-	scnMgr->getRootSceneNode()->addChild(lightnode3);
-	lightnode3->setPosition(45, 100, -100);
-	lightnode3->setDirection(0, -1, 1);
-
-	Ogre::SceneNode* spherenode3 = scnMgr->createSceneNode("Node31");
-	scnMgr->getRootSceneNode()->addChild(spherenode3);
-	spherenode3->setPosition(40, 100, -75);
-
-	Ogre::SceneNode* penguinnode = scnMgr->getRootSceneNode()->createChildSceneNode();
-	penguinnode->setScale(1, 1.33, 0.5);
-	penguinnode->setPosition(0, 20, 0);
+	Ogre::SceneNode* node = scnMgr->createSceneNode("Node2");
+	scnMgr->getRootSceneNode()->addChild(node);
+	_SinbadNode = node->createChildSceneNode("SinbadNode");
+	_SinbadNode->setScale(3.0f, 3.0f, 3.0f);
+	_SinbadNode->setPosition(Ogre::Vector3(0.0f, 4.0f, 0.0f));
 
 
 
 	// Lights
 
-	Ogre::Light* light1 = scnMgr->createLight("Light1");
-	light1->setType(Ogre::Light::LT_SPOTLIGHT);
-	light1->setSpotlightInnerAngle(Ogre::Degree(15.0f));
-	light1->setSpotlightOuterAngle(Ogre::Degree(45.0f));
-	light1->setSpotlightFalloff(0.3f);
-	light1->setDiffuseColour(Ogre::ColourValue(0.0f, 1.0f, 0.0f));
-	lightnode->attachObject(light1);
-
-	Ogre::Light* light2 = scnMgr->createLight("Light2");
-	light2->setType(Ogre::Light::LT_SPOTLIGHT);
-	light2->setSpotlightInnerAngle(Ogre::Degree(15.0f));
-	light2->setSpotlightOuterAngle(Ogre::Degree(45.0f));
-	light2->setSpotlightFalloff(0.3f);
-	light2->setDiffuseColour(Ogre::ColourValue(1.0f, 0.0f, 0.0f));
-	lightnode2->attachObject(light2);
-
-	Ogre::Light* light3 = scnMgr->createLight("Light3");
-	light3->setType(Ogre::Light::LT_SPOTLIGHT);
-	light3->setSpotlightInnerAngle(Ogre::Degree(15.0f));
-	light3->setSpotlightOuterAngle(Ogre::Degree(45.0f));
-	light3->setSpotlightFalloff(0.3f);
-	light3->setDiffuseColour(Ogre::ColourValue(0.0f, 0.0f, 1.0f));
-	lightnode3->attachObject(light3);
-
-	/* Spotlights
-	Spotlights are just like flashlights in their effect. They have a position where they are and a
-	direction in which they illuminate the scene. This direction was the first thing we set after
-	creating the light. The direction simply defines in which direction the spotlight is pointed.
-	The next two parameters we set were the inner and the outer angles of the spotlight.
-	The inner part of the spotlight illuminates the area with the complete power of the light
-	source's color. The outer part of the cone uses less power to light the illuminated objects.
-	This is done to emulate the effects of a real flashlight. A real flashlight also has an inner part
-	and an outer part that illuminate the area lesser then the center of the spotlight.
-	The inner and outer angles we set define how big the inner and the outer part should be.
-	After setting the angles, we set a falloff parameter. This falloff parameter﻿ describes how
-	much power the light loses when illuminating the outer part of the light cone.
-	The farther away a point to be illuminated is from the inner cone, the more the falloff affects
-	the point. If a point is outside the outer cone, then it isn't illuminated by the spotlight.
-	*/
-
-	// Light Entities - No shadows
+	Ogre::Light* light = scnMgr->createLight("Light1");
+	light->setType(Ogre::Light::LT_DIRECTIONAL);
+	light->setDiffuseColour(Ogre::ColourValue(1.0f, 1.0f, 1.0f));
+	directionallightnode->attachObject(light);
 	
-	Ogre::Entity* LightEnt = scnMgr->createEntity("MyEntity", "sphere.mesh");
-	spherenode->setScale(0.1f, 0.1f, 0.1f);
-	spherenode->attachObject(LightEnt);
-	LightEnt->setCastShadows(false);    // important for lightentities
-
-	Ogre::Entity* LightEnt2 = scnMgr->createEntity("MyEntity2", "sphere.mesh");
-	spherenode2->setScale(0.1f, 0.1f, 0.1f);
-	spherenode2->attachObject(LightEnt2);
-	LightEnt2->setCastShadows(false);
-
-	Ogre::Entity* LightEnt3 = scnMgr->createEntity("MyEntity3", "sphere.mesh");
-	spherenode3->setScale(0.1f, 0.1f, 0.1f);
-	spherenode3->attachObject(LightEnt3);
-	LightEnt3->setCastShadows(false);
-
-	/* Learnt the very obvious thing that meshes that build lightentities must have setCastShadows(false) */
-
-	// Pinguino
-
-	Ogre::Entity* penguinentity = scnMgr->createEntity("penguin.mesh");
-	penguinentity->setCastShadows(false);
-	penguinnode->attachObject(penguinentity);
 
 
 
-	//3
+	// Entities
+
+	Ogre::Entity* sinbadent = scnMgr->createEntity("Sinbad", "Sinbad.mesh");
+	_SinbadNode->attachObject(sinbadent);
 
 
 	/* 
@@ -262,6 +225,9 @@ void TutorialApplication::setup()
 	/*
 	*/
 
+	// FrameListener
+
+	createFramelistener();
 
 
 
