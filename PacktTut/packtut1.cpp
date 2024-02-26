@@ -24,8 +24,16 @@ public:
 
 
 
-	Example25FrameListener(Ogre::SceneNode* node) {
-		_node = node;
+	Example25FrameListener(Ogre::SceneNode* entityNode, Ogre::Entity* anient, Ogre::Entity* anient2)
+		: mEntityNode(entityNode), _anient(anient), _anient2(anient2)
+	{
+		_aniState = _anient->getAnimationState("RunBase");
+		_aniState->setEnabled(true);
+		_aniState->setLoop(true);
+
+		_aniState2 = _anient2->getAnimationState("Dance");
+		_aniState2->setEnabled(true);
+		_aniState2->setLoop(true);
 	}
 
 	Example25FrameListener() {
@@ -37,6 +45,7 @@ public:
 		if (_frameListener) {
 			delete _frameListener;
 		}
+
 	}
 
 	bool frameStarted(const Ogre::FrameEvent& evt) override {
@@ -45,37 +54,42 @@ public:
 
 		//_node->translate(Ogre::Vector3(10, 0, 0) * evt.timeSinceLastFrame);
 
-		_node->translate(_translation * evt.timeSinceLastFrame);
+		// Apply translation to the entity node
+		mEntityNode->translate(mEntityTranslation * evt.timeSinceLastFrame);
+		_aniState->addTime(evt.timeSinceLastFrame);
+		_aniState2->addTime(evt.timeSinceLastFrame);
+
+		// Apply translation to the camera node
+		//mCameraNode->translate(mCameraTranslation * evt.timeSinceLastFrame);
 
 		return true;
 	}
 
-	void setTranslation(const Ogre::Vector3& translation)
+	void setEntityTranslation(const Ogre::Vector3& translation)
 	{
-		_translation = translation;
+		mEntityTranslation = translation;
 	}
+
 	/*
-	bool keyPressed(const OgreBites::KeyboardEvent& evt) override {
-
-
-		OgreBites::Keycode key = evt.keysym.sym;
-
-		// Example: Translate right when right arrow key is pressed
-		if (key == OgreBites::SDLK_RIGHT)
-		{
-			_translation.x += 10.0f;
-			return true;
-		}
-		return false;
+	void setCameraTranslation(const Ogre::Vector3& translation)
+	{
+		mCameraTranslation = translation;
 	}
 	*/
 
-	Ogre::Vector3 _translation = Ogre::Vector3::ZERO;
 	Ogre::FrameListener* _frameListener;
 	
 
 private:
-	Ogre::SceneNode* _node;
+	Ogre::SceneNode* mEntityNode;
+	Ogre::Vector3 mEntityTranslation = Ogre::Vector3::ZERO;
+	Ogre::Entity* _anient;
+	Ogre::Entity* _anient2;
+	Ogre::AnimationState* _aniState;
+	Ogre::AnimationState* _aniState2;
+
+	//Ogre::SceneNode* mCameraNode;
+	//Ogre::Vector3 mCameraTranslation = Ogre::Vector3::ZERO;
 
 
 };
@@ -92,12 +106,18 @@ public:
 	virtual ~TutorialApplication();
 
 	void setup();
-	bool keyPressed(const OgreBites::KeyboardEvent& evt);
 	void createFramelistener();
+	bool mouseMoved(const OgreBites::MouseMotionEvent& evt);
+	bool mouseWheel(const OgreBites::MouseWheelEvent& evt);
 
 private:
 	Ogre::SceneNode* _SinbadNode;
+	Ogre::SceneNode* _SinbadNode2;
 	Example25FrameListener* _frameListener;
+	Ogre::SceneNode* camNode;
+	Ogre::Entity* _SinbadEnt;
+	Ogre::Entity* _SinbadEnt2;
+	bool keyPressed(const OgreBites::KeyboardEvent& evt);
 };
 
 TutorialApplication::TutorialApplication()
@@ -105,18 +125,27 @@ TutorialApplication::TutorialApplication()
 
 {
 	_SinbadNode = NULL;
+	_SinbadNode2 = NULL;
 	_frameListener = NULL;
+	camNode = NULL;
+	_SinbadEnt = NULL;
+	_SinbadEnt2 = NULL;
 }
 
 TutorialApplication::~TutorialApplication() 
 
 {
 	delete _SinbadNode;
+	delete _SinbadNode2;
+	delete camNode;
+	delete _SinbadEnt;
+	delete _SinbadEnt2;
+
 	delete _frameListener;
 }
 
 void TutorialApplication::createFramelistener() {
-	_frameListener = new Example25FrameListener(_SinbadNode);
+	_frameListener = new Example25FrameListener(_SinbadNode, _SinbadEnt, _SinbadEnt2);
 	getRoot()->addFrameListener(_frameListener);
 }
 
@@ -161,7 +190,7 @@ void TutorialApplication::setup()
 
 	// camera creation
 
-	Ogre::SceneNode* camNode = scnMgr->getRootSceneNode()->createChildSceneNode();
+	camNode = scnMgr->getRootSceneNode()->createChildSceneNode();
 	Ogre::Camera* cam = scnMgr->createCamera("myCam");
 
 	camNode->setPosition(0, 100, 200);
@@ -244,11 +273,16 @@ void TutorialApplication::setup()
 	scnMgr->getRootSceneNode()->addChild(directionallightnode);
 	directionallightnode->setDirection(Ogre::Vector3(1, -1, 0));
 
+	/* Get the _SinbadNode that we defined in the class */
+
 	Ogre::SceneNode* node = scnMgr->createSceneNode("Node2");
 	scnMgr->getRootSceneNode()->addChild(node);
+
 	_SinbadNode = node->createChildSceneNode("SinbadNode");
 	_SinbadNode->setScale(3.0f, 3.0f, 3.0f);
 	_SinbadNode->setPosition(Ogre::Vector3(0.0f, 4.0f, 0.0f));
+	_SinbadNode2 = _SinbadNode->createChildSceneNode("SinbadNode2");
+	_SinbadNode2->setPosition(Ogre::Vector3(-8.0f, 0.0f, 0.0f));
 
 
 
@@ -264,8 +298,10 @@ void TutorialApplication::setup()
 
 	// Entities
 
-	Ogre::Entity* sinbadent = scnMgr->createEntity("Sinbad", "Sinbad.mesh");
-	_SinbadNode->attachObject(sinbadent);
+	_SinbadEnt = scnMgr->createEntity("Sinbad", "Sinbad.mesh");
+	_SinbadNode->attachObject(_SinbadEnt);
+	_SinbadEnt2 = scnMgr->createEntity("Sinbad2", "Sinbad.mesh");
+	_SinbadNode2->attachObject(_SinbadEnt2);
 
 
 	/* 
@@ -297,20 +333,47 @@ bool TutorialApplication::keyPressed(const OgreBites::KeyboardEvent& evt) {
 	// Update translation based on key presses
 	if (key == OgreBites::SDLK_UP)
 	{
-		_frameListener->setTranslation(Ogre::Vector3(0, 0, -10)); // Move up
+		_frameListener->setEntityTranslation(Ogre::Vector3(0, 0, -10)); // Move up
 	}
 	else if (key == OgreBites::SDLK_DOWN)
 	{
-		_frameListener->setTranslation(Ogre::Vector3(0, 0, 10)); // Move down
+		_frameListener->setEntityTranslation(Ogre::Vector3(0, 0, 10)); // Move down
 	}
 	else if (key == OgreBites::SDLK_LEFT)
 	{
-		_frameListener->setTranslation(Ogre::Vector3(-10, 0, 0)); // Move left
+		_frameListener->setEntityTranslation(Ogre::Vector3(-10, 0, 0)); // Move left
 	}
 	else if (key == OgreBites::SDLK_RIGHT)
 	{
-		_frameListener->setTranslation(Ogre::Vector3(10, 0, 0)); // Move right
+		_frameListener->setEntityTranslation(Ogre::Vector3(10, 0, 0)); // Move right
 	}
+
+	return true;
+}
+
+bool TutorialApplication::mouseMoved(const OgreBites::MouseMotionEvent& evt) {
+
+	// Calculate rotation based on mouse movement
+	float rotX = evt.xrel * -0.5; // Adjust the sensitivity as needed
+	float rotY = evt.yrel * -0.5;
+
+	// Adjust camera orientation
+	camNode->yaw(Ogre::Degree(rotX));
+	camNode->pitch(Ogre::Degree(rotY));
+
+	// Update camera position based on forward/backward movement (optional)
+	// Adjust the forward/backward movement speed as needed
+	/*
+	Ogre::Vector3 cameraMovement = mCameraNode->getOrientation() * Ogre::Vector3(0, 0, -1);
+	mCameraNode->setPosition(mCameraNode->getPosition() + cameraMovement * 10 * evt.timeSinceLastFrame);
+	*/
+
+	return true;
+}
+
+bool TutorialApplication::mouseWheel(const OgreBites::MouseWheelEvent& evt) {
+	float zoomin = evt.y * 0.1;
+	float zoomout = evt.y * -0.1;
 
 	return true;
 }
