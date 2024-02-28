@@ -22,30 +22,47 @@ class Example25FrameListener : public Ogre::FrameListener, OgreBites::InputListe
 
 public:
 
+	/* I believe we will have to rewrite the code so the keypressed will be synced at another level with the framelistener
+	   At this point the translation continues and we kind of want the possibility to not have the translation constant
+	*/
 
 
-	Example25FrameListener(Ogre::SceneNode* entityNode, Ogre::Entity* anient, Ogre::Entity* anient2)
-		: mEntityNode(entityNode), _anient(anient), _anient2(anient2)
+	Example25FrameListener(Ogre::SceneNode* entityNode, Ogre::SceneNode* camNode, Ogre::Entity* anient, Ogre::Entity* anient2)
+		: _EntityNode(entityNode), _CamNode(camNode), _anient(anient), _anient2(anient2)
 	{
+
+		_walked = false;
+		_WalkingSpeed = 3.0f;
+		_rotation = 0.0f;
+
+		_aniState = _anient->getAnimationState("RunBase");
+		_aniState->setLoop(false);
+		_aniStateTop = _anient->getAnimationState("RunTop");
+		_aniStateTop->setLoop(false);
+
+		/*
 		_aniState = _anient->getAnimationState("RunBase");
 		_aniState->setEnabled(true);
 		_aniState->setLoop(true);
+		*/
 
 		_aniState2 = _anient2->getAnimationState("Dance");
 		_aniState2->setEnabled(true);
 		_aniState2->setLoop(true);
 	}
 
+	/*/
 	Example25FrameListener() {
-		_frameListener = NULL;
+		//_frameListener = NULL;
 	}
+	*/
 
 
 	~Example25FrameListener() {
-		if (_frameListener) {
+		/*if (_frameListener) {
 			delete _frameListener;
 		}
-
+		*/
 	}
 
 	bool frameStarted(const Ogre::FrameEvent& evt) override {
@@ -53,11 +70,48 @@ public:
 		//_node->translate(Ogre::Vector3(0.1, 0, 0));
 
 		//_node->translate(Ogre::Vector3(10, 0, 0) * evt.timeSinceLastFrame);
+		// 
+		//Ogre::Vector3 SinbadTranslate(0, 0, 0);
 
-		// Apply translation to the entity node
-		mEntityNode->translate(mEntityTranslation * evt.timeSinceLastFrame);
+		// Apply translation to nodes
+		//_EntityNode->translate(_EntityTranslation * evt.timeSinceLastFrame);
+		_CamNode->translate(_CamTranslation * evt.timeSinceLastFrame);
+
+		// Set anistates !!! IMPORTANT
 		_aniState->addTime(evt.timeSinceLastFrame);
+		_aniStateTop->addTime(evt.timeSinceLastFrame);
 		_aniState2->addTime(evt.timeSinceLastFrame);
+
+		if (_walked) {
+
+		    _aniState->setEnabled(true);
+			_aniStateTop->setEnabled(true);
+
+			if (_aniState->hasEnded()) {
+
+				_aniState->setTimePosition(0.0f);
+			}
+
+			if (_aniStateTop->hasEnded()) {
+
+				_aniStateTop->setTimePosition(0.0f);
+			
+			}
+		}
+
+		else
+		{
+			_aniState->setTimePosition(0.0f);
+			_aniState->setEnabled(false);
+			_aniStateTop->setTimePosition(0.0f);
+			_aniStateTop->setEnabled(false);
+		}
+
+		_EntityNode->translate(_EntityTranslation * evt.timeSinceLastFrame * _WalkingSpeed);
+		_EntityNode->resetOrientation();
+		_EntityNode->yaw(Ogre::Radian(_rotation));
+
+
 
 		// Apply translation to the camera node
 		//mCameraNode->translate(mCameraTranslation * evt.timeSinceLastFrame);
@@ -67,26 +121,39 @@ public:
 
 	void setEntityTranslation(const Ogre::Vector3& translation)
 	{
-		mEntityTranslation = translation;
+		_EntityTranslation = translation;
 	}
 
-	/*
+	void setEntityRotation(const float rotation) {
+		_rotation = rotation;
+	}
+
+	void setWalked(bool walked) {
+		_walked = walked;
+	}
+	
 	void setCameraTranslation(const Ogre::Vector3& translation)
 	{
-		mCameraTranslation = translation;
+		_CamTranslation = translation;
 	}
-	*/
+	
 
-	Ogre::FrameListener* _frameListener;
+	//Ogre::FrameListener* _frameListener;
 	
 
 private:
-	Ogre::SceneNode* mEntityNode;
-	Ogre::Vector3 mEntityTranslation = Ogre::Vector3::ZERO;
+	Ogre::SceneNode* _EntityNode;
+	Ogre::SceneNode* _CamNode;
+	Ogre::Vector3 _EntityTranslation = Ogre::Vector3::ZERO;
+	Ogre::Vector3 _CamTranslation = Ogre::Vector3::ZERO;
 	Ogre::Entity* _anient;
 	Ogre::Entity* _anient2;
 	Ogre::AnimationState* _aniState;
+	Ogre::AnimationState* _aniStateTop;
 	Ogre::AnimationState* _aniState2;
+	float _WalkingSpeed;
+	float _rotation;
+	bool _walked;
 
 	//Ogre::SceneNode* mCameraNode;
 	//Ogre::Vector3 mCameraTranslation = Ogre::Vector3::ZERO;
@@ -97,8 +164,8 @@ private:
 class TutorialApplication
 	: public OgreBites::ApplicationContext,
 	public OgreBites::InputListener,
-	public Ogre::FrameListener,
-	public Example25FrameListener
+	public Ogre::FrameListener
+	//public Example25FrameListener
 
 {
 public:
@@ -109,15 +176,17 @@ public:
 	void createFramelistener();
 	bool mouseMoved(const OgreBites::MouseMotionEvent& evt);
 	bool mouseWheel(const OgreBites::MouseWheelEvent& evt);
+	void updateCameraZoom(Ogre::Real deltaZoom);
 
 private:
 	Ogre::SceneNode* _SinbadNode;
 	Ogre::SceneNode* _SinbadNode2;
 	Example25FrameListener* _frameListener;
-	Ogre::SceneNode* camNode;
+	Ogre::SceneNode* _CamNode;
 	Ogre::Entity* _SinbadEnt;
 	Ogre::Entity* _SinbadEnt2;
 	bool keyPressed(const OgreBites::KeyboardEvent& evt);
+	bool keyReleased(const OgreBites::KeyboardEvent& evt);
 };
 
 TutorialApplication::TutorialApplication()
@@ -127,7 +196,7 @@ TutorialApplication::TutorialApplication()
 	_SinbadNode = NULL;
 	_SinbadNode2 = NULL;
 	_frameListener = NULL;
-	camNode = NULL;
+	_CamNode = NULL;
 	_SinbadEnt = NULL;
 	_SinbadEnt2 = NULL;
 }
@@ -137,7 +206,7 @@ TutorialApplication::~TutorialApplication()
 {
 	delete _SinbadNode;
 	delete _SinbadNode2;
-	delete camNode;
+	delete _CamNode;
 	delete _SinbadEnt;
 	delete _SinbadEnt2;
 
@@ -145,7 +214,7 @@ TutorialApplication::~TutorialApplication()
 }
 
 void TutorialApplication::createFramelistener() {
-	_frameListener = new Example25FrameListener(_SinbadNode, _SinbadEnt, _SinbadEnt2);
+	_frameListener = new Example25FrameListener(_SinbadNode, _CamNode, _SinbadEnt, _SinbadEnt2);
 	getRoot()->addFrameListener(_frameListener);
 }
 
@@ -190,14 +259,14 @@ void TutorialApplication::setup()
 
 	// camera creation
 
-	camNode = scnMgr->getRootSceneNode()->createChildSceneNode();
+	_CamNode = scnMgr->getRootSceneNode()->createChildSceneNode();
 	Ogre::Camera* cam = scnMgr->createCamera("myCam");
 
-	camNode->setPosition(0, 100, 200);
-	camNode->lookAt(Ogre::Vector3(0, 0, 0), Ogre::Node::TransformSpace::TS_WORLD);
+	_CamNode->setPosition(0, 100, 200);
+	_CamNode->lookAt(Ogre::Vector3(0, 0, 0), Ogre::Node::TransformSpace::TS_WORLD);
 
 	cam->setNearClipDistance(5);
-	camNode->attachObject(cam);
+	_CamNode->attachObject(cam);
 
 	//cam->setPolygonMode(Ogre::PM_POINTS);
 
@@ -330,22 +399,78 @@ bool TutorialApplication::keyPressed(const OgreBites::KeyboardEvent& evt) {
 		getRoot()->queueEndRendering();
 	}
 
+	if (key == 'w') {
+		_frameListener->setCameraTranslation(Ogre::Vector3(0, 10, 0));
+	}
+
+	if (key == 'a') {
+		_frameListener->setCameraTranslation(Ogre::Vector3(-10, 0, 0));
+	}
+
+	if (key == 's') {
+		_frameListener->setCameraTranslation(Ogre::Vector3(0, -10, 0));
+	}
+
+	if (key == 'd') {
+		_frameListener->setCameraTranslation(Ogre::Vector3(10, 0, 0));
+	}
+
 	// Update translation based on key presses
 	if (key == OgreBites::SDLK_UP)
 	{
 		_frameListener->setEntityTranslation(Ogre::Vector3(0, 0, -10)); // Move up
+		_frameListener->setEntityRotation(3.14f);
+		_frameListener->setWalked(true);
 	}
-	else if (key == OgreBites::SDLK_DOWN)
+	if (key == OgreBites::SDLK_DOWN)
 	{
 		_frameListener->setEntityTranslation(Ogre::Vector3(0, 0, 10)); // Move down
+		_frameListener->setEntityRotation(0.0f);
+		_frameListener->setWalked(true);
 	}
-	else if (key == OgreBites::SDLK_LEFT)
+	if (key == OgreBites::SDLK_LEFT)
 	{
 		_frameListener->setEntityTranslation(Ogre::Vector3(-10, 0, 0)); // Move left
+		_frameListener->setEntityRotation(-1.57f);
+		_frameListener->setWalked(true);
 	}
-	else if (key == OgreBites::SDLK_RIGHT)
+	if (key == OgreBites::SDLK_RIGHT)
 	{
 		_frameListener->setEntityTranslation(Ogre::Vector3(10, 0, 0)); // Move right
+		_frameListener->setEntityRotation(1.57f);
+		_frameListener->setWalked(true);
+	}
+
+	return true;
+}
+
+bool TutorialApplication::keyReleased(const OgreBites::KeyboardEvent& evt) {
+
+	OgreBites::Keycode key = evt.keysym.sym;
+
+	if (key == OgreBites::SDLK_UP)
+	{
+		_frameListener->setEntityTranslation(Ogre::Vector3(0, 0, 0)); // Move up
+		_frameListener->setEntityRotation(3.14f);
+		_frameListener->setWalked(false);
+	}
+	if (key == OgreBites::SDLK_DOWN)
+	{
+		_frameListener->setEntityTranslation(Ogre::Vector3(0, 0, 0)); // Move down
+		_frameListener->setEntityRotation(0.0f);
+		_frameListener->setWalked(false);
+	}
+	if (key == OgreBites::SDLK_LEFT)
+	{
+		_frameListener->setEntityTranslation(Ogre::Vector3(0, 0, 0)); // Move left
+		_frameListener->setEntityRotation(-1.57f);
+		_frameListener->setWalked(false);
+	}
+	if (key == OgreBites::SDLK_RIGHT)
+	{
+		_frameListener->setEntityTranslation(Ogre::Vector3(0, 0, 0)); // Move right
+		_frameListener->setEntityRotation(1.57f);
+		_frameListener->setWalked(false);
 	}
 
 	return true;
@@ -358,8 +483,8 @@ bool TutorialApplication::mouseMoved(const OgreBites::MouseMotionEvent& evt) {
 	float rotY = evt.yrel * -0.5;
 
 	// Adjust camera orientation
-	camNode->yaw(Ogre::Degree(rotX));
-	camNode->pitch(Ogre::Degree(rotY));
+	_CamNode->yaw(Ogre::Degree(rotX));
+	_CamNode->pitch(Ogre::Degree(rotY));
 
 	// Update camera position based on forward/backward movement (optional)
 	// Adjust the forward/backward movement speed as needed
@@ -372,10 +497,37 @@ bool TutorialApplication::mouseMoved(const OgreBites::MouseMotionEvent& evt) {
 }
 
 bool TutorialApplication::mouseWheel(const OgreBites::MouseWheelEvent& evt) {
-	float zoomin = evt.y * 0.1;
-	float zoomout = evt.y * -0.1;
+
+	Ogre::Vector3 cameraZoom = _CamNode->getOrientation() * Ogre::Vector3(0, evt.y * 0.1, 0);
 
 	return true;
+}
+
+/*
+TutorialApplication::void updateCamera(Real deltaTime)
+{
+	// place the camera pivot roughly at the character's shoulder
+	mCameraPivot->setPosition(mBodyNode->getPosition() + Vector3::UNIT_Y * CAM_HEIGHT);
+	// move the camera smoothly to the goal
+	Vector3 goalOffset = mCameraGoal->_getDerivedPosition() - mCameraNode->getPosition();
+	mCameraNode->translate(goalOffset * deltaTime * 9.0f);
+	// always look at the pivot
+	mCameraNode->lookAt(mCameraPivot->_getDerivedPosition(), Node::TS_PARENT);
+} */
+
+/* When working with cameras, we have to account in rotation when applying lookAt() */
+
+void TutorialApplication::updateCameraZoom(Ogre::Real deltaZoom)
+{
+
+	//Ogre::Real dist = mCameraGoal->_getDerivedPosition().distance(mCameraPivot->_getDerivedPosition());
+	//Ogre::Real distChange = deltaZoom * dist;
+
+	// bound the zoom
+	/**if (!(dist + distChange < 8 && distChange < 0) &&
+		!(dist + distChange > 25 && distChange > 0))
+	{ */
+	//mCameraGoal->translate(0, 0, distChange, Ogre::Node::TS_LOCAL);
 }
 
 int main(int argc, char** argv)
