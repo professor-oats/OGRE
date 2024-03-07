@@ -46,8 +46,8 @@
 using namespace Ogre;
 using namespace OgreBites;
 
-class BasicTutorial1 : public ApplicationContext, public InputListener, 
-                       public FrameListener, public SdkSample
+class BasicTutorial1 : public ApplicationContext, public InputListener,
+    public FrameListener
 {
 public:
     BasicTutorial1();
@@ -64,6 +64,7 @@ private:
     Label* _InfoLabel = nullptr;
     Root* _Root;
     Camera* _Cam;
+    TrayManager* _TrayMgr;
 
     void configureTerrainDefaults(Ogre::Light* lightin);
     void defineTerrain(long x, long y);
@@ -71,6 +72,10 @@ private:
     void initBlendMaps(Terrain* terrain);
 
     bool _TerrainsImported;
+
+protected:
+    //virtual bool frameRenderingQueued(const Ogre::FrameEvent& evt);
+
 };
 
 
@@ -103,7 +108,15 @@ void BasicTutorial1::setup()
     // Set render window to true
 
     //_Window = _Root->initialise(true);
- 
+
+     // Create trays
+
+    _TrayMgr = new TrayManager("InterfaceName", getRenderWindow());  // No need to delete, OgreMain.dll does that on shutdown
+    addInputListener(_TrayMgr);
+
+    Button* b = _TrayMgr->createButton(TL_TOPLEFT, "MyButton", "Click Me!");
+    _TrayMgr->createLabel(TL_TOP, "TInfo", "", 350);
+
 
     // [camera]
 
@@ -135,7 +148,7 @@ void BasicTutorial1::setup()
     _CamNode->attachObject(_Cam);
 
     // Set shadows
- 
+
     _ScnMgr->setAmbientLight(ColourValue(0, 0, 0));
     _ScnMgr->setShadowTechnique(ShadowTechnique::SHADOWTYPE_NONE);
 
@@ -195,19 +208,22 @@ void BasicTutorial1::setup()
     // Make a tray top
 
     //_InfoLabel = mTrayMgr->createLabel(TL_TOP, "TInfo", "", 350);
- 
-}        
 
+}
 /*
-bool BasicTutorial1::frameRenderingQueued(const Ogre::FrameEvent& evt)
-{
+bool BasicTutorial1::frameRenderingQueued(const Ogre::FrameEvent& evt) {
+    /*
     if (mTrayMgr->isDialogVisible()) {
         return true;
     }
 
-    if (_TerrainGroup->isDerivedDataUpdateInProgress())
+
+    bool ret = ApplicationContextBase::frameRenderingQueued(evt);
+
+    /*
+   if (_TerrainGroup->isDerivedDataUpdateInProgress())
     {
-        mTrayMgr->moveWidgetToTray(_InfoLabel, TL_TOP, 0);
+        _TrayMgr->moveWidgetToTray(_InfoLabel, TL_TOP, 0);
         _InfoLabel->show();
         if (_TerrainsImported)
         {
@@ -220,7 +236,7 @@ bool BasicTutorial1::frameRenderingQueued(const Ogre::FrameEvent& evt)
     }
     else
     {
-        mTrayMgr->removeWidgetFromTray(_InfoLabel);
+        _TrayMgr->removeWidgetFromTray(_InfoLabel);
         _InfoLabel->hide();
         if (_TerrainsImported)
         {
@@ -231,9 +247,8 @@ bool BasicTutorial1::frameRenderingQueued(const Ogre::FrameEvent& evt)
     }
 
     mInputListenerChain.frameRendered(evt);
-    return true;
-}
-*/
+    return ret;
+} */
 
 void BasicTutorial1::configureTerrainDefaults(Light* lightin) {
     //! [configure_lod]
@@ -299,7 +314,7 @@ void BasicTutorial1::defineTerrain(long x, long y) {
     // if a file is available, use it
     // if not, generate file from import
 
- 
+
     String filename = _TerrainGroup->generateFilename(x, y);
     if (ResourceGroupManager::getSingleton().resourceExists(_TerrainGroup->getResourceGroup(), filename))
     {
@@ -374,6 +389,8 @@ bool BasicTutorial1::keyPressed(const KeyboardEvent& evt)
     if (evt.keysym.sym == SDLK_ESCAPE)
     {
         getRoot()->queueEndRendering();
+        delete _TerrainGroup;
+        delete _TerrainGlobals;
     }
     return true;
 }
