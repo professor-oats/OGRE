@@ -173,9 +173,53 @@ void BaseApplication::setup() {
     _LightDirNode->setDirection(Vector3(0.55, -0.3, 0.75).normalisedCopy());
     _LightDirNode->attachObject(_LightDir);
 
+
+    Light* _LightDir2 = _ScnMgr->createLight();
+    _LightDir2->setType(Light::LT_DIRECTIONAL);
+    _LightDir2->setDiffuseColour(ColourValue::White);
+    _LightDir2->setSpecularColour(ColourValue(0.4, 0.4, 0.4));
+
+    SceneNode* _LightDirNode2 = _ScnMgr->getRootSceneNode()->createChildSceneNode();
+    _LightDirNode2->setDirection(Vector3(-0.55, -0.3, 0.55).normalisedCopy());
+    _LightDirNode2->attachObject(_LightDir2);
+
+    Light* _LightDir3 = _ScnMgr->createLight();
+    _LightDir3->setType(Light::LT_DIRECTIONAL);
+    _LightDir3->setDiffuseColour(ColourValue::White);
+    _LightDir3->setSpecularColour(ColourValue(0.4, 0.4, 0.4));
+
+    SceneNode* _LightDirNode3 = _ScnMgr->getRootSceneNode()->createChildSceneNode();
+    _LightDirNode3->setDirection(Vector3(0, -0.3, -0.55).normalisedCopy());
+    _LightDirNode3->attachObject(_LightDir3);
+
+    // Make plane
+
+    Plane plane(Vector3::UNIT_Y, 0);
+    MeshManager::getSingleton().createPlane
+    (
+        "plane",
+        ResourceGroupManager::DEFAULT_RESOURCE_GROUP_NAME,
+        plane, 1500, 1500, 200, 200, true, 20, 20, 20, Vector3::UNIT_Z
+    );
+
+    Entity* _PlaneEnt = _ScnMgr->createEntity("LightPlaneEntity", "plane");
+    _ScnMgr->getRootSceneNode()->createChildSceneNode()->attachObject(_PlaneEnt);
+    _PlaneEnt->setCastShadows(false);
+    _PlaneEnt->setMaterialName("Examples/Rocky");
+
+
     // Make sky
 
-    //_ScnMgr->setSkyBox(true, "Examples/EveningSkyBox");
+    _ScnMgr->setSkyBox(true, "Examples/EveningSkyBox");
+
+    // Add a penguin entity
+
+    Entity* _PengEnt = _ScnMgr->createEntity("penguin.mesh");
+    _PengEnt->setCastShadows(false);
+
+    SceneNode* _PengEntNode = _ScnMgr->getRootSceneNode()->createChildSceneNode();
+    _PengEntNode->setScale(6, 8, 3);
+    _PengEntNode->attachObject(_PengEnt);
 }
 
 /*
