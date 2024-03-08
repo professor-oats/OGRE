@@ -82,7 +82,10 @@ public:
     void createFramelistener();
     void setup() override;
     bool keyPressed(const KeyboardEvent& evt) override;
-    //bool frameStarted(const FrameEvent& evt) override;
+    bool keyReleased(const KeyboardEvent& evt) override;
+    bool mouseMoved(const MouseMotionEvent& evt) override;
+    bool mouseWheelRolled(const MouseWheelEvent& evt) override;
+    bool mousePressed(const MouseButtonEvent& evt) override;
 
 private:
 
@@ -100,6 +103,7 @@ BaseApplication::BaseApplication() : ApplicationContext ("OGREsamples"), _Charac
     _Root = nullptr;
     _Cam = nullptr;
     _Character = nullptr;
+    _FrameListener = nullptr;
 }
 
 void BaseApplication::setup() {
@@ -199,6 +203,44 @@ bool BaseApplication::keyPressed(const KeyboardEvent& evt) {
 
     if (_Character) {
         _Character->injectKeyDown(evt);
+    }
+
+    return true;
+}
+
+bool BaseApplication::keyReleased(const KeyboardEvent& evt) {
+
+    if (_Character) {
+        _Character->injectKeyUp(evt);
+    }
+
+    return true;
+}
+
+bool BaseApplication::mouseMoved(const MouseMotionEvent& evt) {
+
+    if (_Character) {
+        _Character->injectMouseMove(evt);
+    }
+
+
+    return true;
+}
+
+bool BaseApplication::mouseWheelRolled(const MouseWheelEvent& evt) {
+
+    if (_Character) {
+        _Character->injectMouseWheel(evt);
+    }
+
+    return true;
+
+}
+
+bool BaseApplication::mousePressed(const MouseButtonEvent& evt) {
+
+    if (_Character) {
+        _Character->injectMouseDown(evt);
     }
 
     return true;
