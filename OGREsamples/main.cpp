@@ -9,6 +9,7 @@
 #include "OgreRTShaderSystem.h"
 #include "OgreApplicationContext.h"
 #include "OgreCameraMan.h"
+#include "SinbadCharacterController.h"
 
 // Terrain
 
@@ -39,6 +40,33 @@ using namespace OgreBites;
 
 
 
+// Currently we have interference with the keyinputs when using BaseApplication::frameStarted() override
+// so I will try to do as I made work before by creating a framelistener class
+// Works very well now
+
+class MyFrameListener : public FrameListener, public InputListener {
+
+public:
+
+    MyFrameListener(SinbadCharacterController* inCharacter) : _Character(inCharacter) {
+       
+    }
+
+    virtual ~MyFrameListener() {
+    
+    }
+
+    bool frameStarted(const FrameEvent& evt) override {
+        _Character->addTime(evt.timeSinceLastFrame);
+        return true;
+    }
+
+private:
+    SinbadCharacterController* _Character;
+
+};
+
+
 class BaseApplication : public ApplicationContext, public FrameListener, public InputListener
 
 {
@@ -51,22 +79,27 @@ public:
     
     }
 
-    void setup();
-    bool keyPressed(const KeyboardEvent& evt);
+    void createFramelistener();
+    void setup() override;
+    bool keyPressed(const KeyboardEvent& evt) override;
+    //bool frameStarted(const FrameEvent& evt) override;
 
 private:
 
     SceneManager* _ScnMgr;
     Root* _Root;
     Camera* _Cam;
+    SinbadCharacterController* _Character;
+    MyFrameListener* _FrameListener;
 
 };
 
 
-BaseApplication::BaseApplication() : ApplicationContext ("OGREsamples") {
+BaseApplication::BaseApplication() : ApplicationContext ("OGREsamples"), _Character(nullptr) {
     _ScnMgr = nullptr;
     _Root = nullptr;
     _Cam = nullptr;
+    _Character = nullptr;
 }
 
 void BaseApplication::setup() {
@@ -92,11 +125,13 @@ void BaseApplication::setup() {
     SceneNode* _CamNode = _ScnMgr->getRootSceneNode()->createChildSceneNode();
 
     _Cam = _ScnMgr->createCamera("myCam");
-    _CamNode->lookAt(Vector3(1963, 50, 1660), Node::TS_PARENT);
-    _Cam->setNearClipDistance(40); // tight near plane important for shadows
-    _Cam->setFarClipDistance(50000);
+    //_CamNode->lookAt(Vector3(1963, 50, 1660), Node::TS_PARENT);
 
-    _Cam->setFarClipDistance(0); // enable infinite far clip distance
+    // This will be setup by the SinbadCharacterController setup
+    //_Cam->setNearClipDistance(40); // tight near plane important for shadows
+    //_Cam->setFarClipDistance(50000);
+
+    //_Cam->setFarClipDistance(0); // enable infinite far clip distance
 
     // Set viewport
 
@@ -109,6 +144,14 @@ void BaseApplication::setup() {
 
     _Cam->setAspectRatio(Real(_Vp->getActualWidth()) / Real(_Vp->getActualHeight()));
     _CamNode->attachObject(_Cam);
+
+    _Character = new SinbadCharacterController(_Cam);
+
+    // Make a framelistener for the character
+
+    createFramelistener();
+
+    //_Character->addTime(0.5);
 
     // Set shadows
 
@@ -128,15 +171,36 @@ void BaseApplication::setup() {
 
     // Make sky
 
-    _ScnMgr->setSkyBox(true, "Examples/EveningSkyBox");
+    //_ScnMgr->setSkyBox(true, "Examples/EveningSkyBox");
+}
+
+/*
+bool BaseApplication::frameStarted(const FrameEvent& evt) {
+    // Update Sinbad's body
+    //_Character->addTime(evt.timeSinceLastFrame);
+
+    return true; // Return true to continue rendering
+}
+*/
+
+void BaseApplication::createFramelistener() {
+    _FrameListener = new MyFrameListener(_Character);
+    getRoot()->addFrameListener(_FrameListener);
 }
 
 bool BaseApplication::keyPressed(const KeyboardEvent& evt) {
 
     if (evt.keysym.sym == SDLK_ESCAPE)
     {
+        delete _Character;
+        _Character = nullptr;
         getRoot()->queueEndRendering();
     }
+
+    if (_Character) {
+        _Character->injectKeyDown(evt);
+    }
+
     return true;
 }
 
