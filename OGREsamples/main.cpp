@@ -1,6 +1,8 @@
 #include <iostream>
 #include <exception>
 
+// OGRE
+
 #include "Ogre.h"
 #include "SdkSample.h"
 #include "Sample.h"
@@ -10,6 +12,12 @@
 #include "OgreApplicationContext.h"
 #include "OgreCameraMan.h"
 #include "SinbadCharacterController.h"
+#include "OgreTrays.h"
+#include "OgreRenderTarget.h"
+#include "OgreWindowEventUtilities.h"
+
+// Collision and physics
+#include "OgreBullet.h"
 
 // Terrain
 
@@ -44,16 +52,17 @@ using namespace OgreBites;
 // so I will try to do as I made work before by creating a framelistener class
 // Works very well now
 
-class MyFrameListener : public FrameListener, public InputListener {
+class MyFrameListener : public FrameListener, public InputListener, public WindowEventListener {
 
 public:
 
-    MyFrameListener(SinbadCharacterController* inCharacter) : _Character(inCharacter) {
-       
+    MyFrameListener(SinbadCharacterController* inCharacter, RenderWindow* inWindow) : _Character(inCharacter), _Window(inWindow) {
+        WindowEventUtilities::addWindowEventListener(_Window, this);
     }
 
     virtual ~MyFrameListener() {
-    
+        WindowEventUtilities::removeWindowEventListener(_Window, this);
+        windowClosed(_Window);
     }
 
     bool frameStarted(const FrameEvent& evt) override {
@@ -61,8 +70,13 @@ public:
         return true;
     }
 
+    bool frameEnded(const FrameEvent& evt) override {
+        return true;
+    }
+
 private:
     SinbadCharacterController* _Character;
+    RenderWindow* _Window;
 
 };
 
@@ -76,7 +90,8 @@ public:
     BaseApplication();
 
     virtual ~BaseApplication() {
-    
+        _TrayManager = nullptr;
+        delete _TrayManager;
     }
 
     void createFramelistener();
@@ -94,16 +109,20 @@ private:
     Camera* _Cam;
     SinbadCharacterController* _Character;
     MyFrameListener* _FrameListener;
-
+    TrayManager* _TrayManager;
+    ParamsPanel* _ParamsPanel;
+    RenderWindow* _Window;
 };
 
 
-BaseApplication::BaseApplication() : ApplicationContext ("OGREsamples"), _Character(nullptr) {
+BaseApplication::BaseApplication() : ApplicationContext("OGREsamples"), _Character(nullptr) {
     _ScnMgr = nullptr;
     _Root = nullptr;
     _Cam = nullptr;
     _Character = nullptr;
     _FrameListener = nullptr;
+    _TrayManager = nullptr;
+    _ParamsPanel = nullptr;
 }
 
 void BaseApplication::setup() {
@@ -114,6 +133,7 @@ void BaseApplication::setup() {
     addInputListener(this);
 
     _Root = getRoot();
+    _Window = getRenderWindow();
     _ScnMgr = _Root->createSceneManager();
 
     // register our scene with the RTSS
@@ -139,7 +159,7 @@ void BaseApplication::setup() {
 
     // Set viewport
 
-    Viewport* _Vp = getRenderWindow()->addViewport(_Cam);
+    Viewport* _Vp = _Window->addViewport(_Cam);
     _Vp->setMaterialScheme(MSN_SHADERGEN);
     _Vp->setBackgroundColour(Ogre::ColourValue(0, 0, 0));
 
@@ -156,6 +176,23 @@ void BaseApplication::setup() {
     createFramelistener();
 
     //_Character->addTime(0.5);
+
+    // TrayManager
+
+    _TrayManager = new OgreBites::TrayManager("InterfaceName", _Window);
+    addInputListener(_TrayManager);
+    _TrayManager->showFrameStats(TL_TOPLEFT);
+
+    /* Button* b = _TrayManager->createButton(TL_TOPLEFT, "MyButton", "Click Me!"); */
+
+    /*
+    StringVector panelitems;
+    panelitems.push_back("FPS");
+    panelitems.push_back("Quit");
+    _ParamsPanel = _TrayManager->createParamsPanel(TL_BOTTOMLEFT, "MyStats", 200, panelitems);
+    _ParamsPanel->setParamValue("Quit", "ESC");
+    */
+
 
     // Set shadows
 
@@ -232,8 +269,8 @@ bool BaseApplication::frameStarted(const FrameEvent& evt) {
 */
 
 void BaseApplication::createFramelistener() {
-    _FrameListener = new MyFrameListener(_Character);
-    getRoot()->addFrameListener(_FrameListener);
+    _FrameListener = new MyFrameListener(_Character, _Window);
+    _Root->addFrameListener(_FrameListener);
 }
 
 bool BaseApplication::keyPressed(const KeyboardEvent& evt) {
