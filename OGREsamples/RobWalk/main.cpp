@@ -75,7 +75,7 @@ public:
 
     bool frameStarted(const FrameEvent& evt) override {
 
-        if (_Direction == Ogre::Vector3::ZERO)
+        if (_Direction == Vector3::ZERO)
         {
             if (nextLocation())
             {
@@ -92,18 +92,23 @@ public:
             if (_Distance <= 0.0)
             {
                 _RobNode->setPosition(_Destination);
-                _Direction = Ogre::Vector3::ZERO;
+                _Direction = Vector3::ZERO;
 
                 if (nextLocation())
                 {
-                    Vector3 src = _RobNode->getOrientation() * Ogre::Vector3::UNIT_X;
+
+                    // First we get the Quaternion through getOrientation and multiply with UNIT_X
+                    // to fix the Quaternion to the RobNode vectoring on X-axis - Making them match.
+                    Vector3 src = _RobNode->getOrientation() * Vector3::UNIT_X;
 
                     if ((1.0 + src.dotProduct(_Direction)) < 0.0001)
                     {
-                        _RobNode->yaw(Ogre::Degree(180));
+                        _RobNode->yaw(Degree(180));
                     }
                     else
                     {
+                        // Then we get the rotation to a new direction and gaining the Quaternion for that
+                        // and rotate the node from the rotation gained from the Quaternion
                         Quaternion quat = src.getRotationTo(_Direction);
                         _RobNode->rotate(quat);
                     }
@@ -117,6 +122,7 @@ public:
             }
             else
             {
+                // Translate the RobNode along the vector with the move constant/REAL
                 _RobNode->translate(move * _Direction);
             }
         }
