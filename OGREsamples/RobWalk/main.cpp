@@ -84,6 +84,42 @@ public:
                 _AnimationState->setEnabled(true);
             }
         }
+        else
+        {
+            Real move = _WalkSpd * evt.timeSinceLastFrame;
+            _Distance -= move;
+
+            if (_Distance <= 0.0)
+            {
+                _RobNode->setPosition(_Destination);
+                _Direction = Ogre::Vector3::ZERO;
+
+                if (nextLocation())
+                {
+                    Vector3 src = _RobNode->getOrientation() * Ogre::Vector3::UNIT_X;
+
+                    if ((1.0 + src.dotProduct(_Direction)) < 0.0001)
+                    {
+                        _RobNode->yaw(Ogre::Degree(180));
+                    }
+                    else
+                    {
+                        Quaternion quat = src.getRotationTo(_Direction);
+                        _RobNode->rotate(quat);
+                    }
+                }
+                else
+                {
+                    _AnimationState = _RobEntity->getAnimationState("Idle");
+                    _AnimationState->setLoop(true);
+                    _AnimationState->setEnabled(true);
+                }
+            }
+            else
+            {
+                _RobNode->translate(move * _Direction);
+            }
+        }
 
         _AnimationState->addTime(evt.timeSinceLastFrame);
 
