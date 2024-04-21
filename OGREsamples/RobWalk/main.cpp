@@ -15,6 +15,7 @@
 #include "OgreTrays.h"
 #include "OgreRenderTarget.h"
 #include "OgreWindowEventUtilities.h"
+#include "OgreMath.h"
 
 // Collision and physics
 #include "OgreBullet.h"
@@ -48,23 +49,26 @@ using namespace OgreBites;
 
 
 
-// Currently we have interference with the keyinputs when using BaseApplication::frameStarted() override
-// so I will try to do as I made work before by creating a framelistener class
-// Works very well now
+// Will we move the keypress handling into the frameListener perhaps?
+// The situation kind of starts calling for it.
+// Or jus have the ESCAPE in the BaseApp thanks to the getRoot and rest inside here?
+// At this point we could as well make the MyFrameListener inherit from BaseApplication
+// instead of passing all the pointer parameters.
+// Guess this will be for the future.
 
 class MyFrameListener : public FrameListener, public InputListener, public WindowEventListener {
 
 public:
 
-    MyFrameListener(Entity* inEntity, SceneNode* inNode, RenderWindow* inWindow, std::deque<Vector3> inList) : _RobEntity(inEntity), _RobNode(inNode), _Window(inWindow), _WalkList(inList) {
+    MyFrameListener(SceneManager* inScnMgr, Entity* inEntity, SceneNode* inNode, RenderWindow* inWindow, std::deque<Vector3> inList) : _ScnMgr(inScnMgr), _RobEntity(inEntity), _RobNode(inNode), _Window(inWindow), _WalkList(inList) {
         WindowEventUtilities::addWindowEventListener(_Window, this);
         _AnimationState = _RobEntity->getAnimationState("Idle");
         _AnimationState->setLoop(true);
         _AnimationState->setEnabled(true);
         _Distance = 0;
-        _WalkSpd = 70.0;
         _Direction = Vector3::ZERO;
         _Destination = Vector3::ZERO;
+        _Walking = false;
     }
 
     virtual ~MyFrameListener() {
@@ -73,15 +77,27 @@ public:
         windowClosed(_Window);
     }
 
+    bool keyPressed(const KeyboardEvent& evt) override {
+
+        int _key = evt.keysym.sym;
+
+        if (_key == 'r') {
+            addToWalkList();
+        }
+
+        return true;
+    }
+
     bool frameStarted(const FrameEvent& evt) override {
 
-        if (_Direction == Vector3::ZERO)
+        if (!_Walking)
         {
             if (nextLocation())
             {
                 _AnimationState = _RobEntity->getAnimationState("Walk");
                 _AnimationState->setLoop(true);
                 _AnimationState->setEnabled(true);
+                _Walking = true;
             }
         }
         else
@@ -93,6 +109,7 @@ public:
             {
                 _RobNode->setPosition(_Destination);
                 _Direction = Vector3::ZERO;
+                _Walking = false;
 
                 if (nextLocation())
                 {
@@ -100,6 +117,9 @@ public:
                     // First we get the Quaternion through getOrientation and multiply with UNIT_X
                     // to fix the Quaternion to the RobNode vectoring on X-axis - Making them match.
                     Vector3 src = _RobNode->getOrientation() * Vector3::UNIT_X;
+                    _Walking = true;
+
+                    // Check if we need a 180 turn
 
                     if ((1.0 + src.dotProduct(_Direction)) < 0.0001)
                     {
@@ -107,8 +127,6 @@ public:
                     }
                     else
                     {
-                        // Then we get the rotation to a new direction and gaining the Quaternion for that
-                        // and rotate the node from the rotation gained from the Quaternion
                         Quaternion quat = src.getRotationTo(_Direction);
                         _RobNode->rotate(quat);
                     }
@@ -150,18 +168,58 @@ public:
         return true;
     }
 
+    // Now ... how will we spawn the new nodes/entities?
+    // I guess we will pass in the object node and entity to FrameListener
+    // Looks like this class becomes more than a mere FrameListener now
+
+    void addToWalkList() {
+
+        // We will generate the ranges for the Vector3. X has the negative max 200
+        // and the rest are symmetrics
+
+        Real thisX = Math::Floor(Math::RangeRandom(0, 500));
+        Real thisminX = Math::Floor(Math::SymmetricRandom() * Math::RangeRandom(0, 200));
+        Real thisY = Math::SymmetricRandom() * Math::RangeRandom(0, 200);
+        Real thisZ = Math::SymmetricRandom() * Math::RangeRandom(0, 300);
+
+        // First I'd like a fifty fifty [-1, 1] < 0 but then I realise the distance min distance -200
+        // and the max distance 500 makes a tilted relationship over to the left so I will adjust the comparison
+        // Easily a 2/5 would be a comparison offset of 0.4, however I think 0.2 does better on this viewport
+        // since the 0 on X-axis is not centered.
+
+        if (Math::SymmetricRandom() < -0.8) {
+            thisX = thisminX;
+        }
+
+        _ObjEntity = _ScnMgr->createEntity("knot.mesh");
+        _ObjNode = _ScnMgr->getRootSceneNode()->createChildSceneNode(Vector3(thisX, thisY, thisZ));
+        _ObjNode->attachObject(_ObjEntity);
+        _ObjNode->setScale(0.1, 0.1, 0.1);
+
+        _WalkList.push_back(Vector3(thisX, thisY, thisZ));
+
+    }
+
 private:
+    SceneManager* _ScnMgr;
     Entity* _RobEntity;
     SceneNode* _RobNode;
+    Entity* _ObjEntity;
+    SceneNode* _ObjNode;
     RenderWindow* _Window;
     AnimationState* _AnimationState;
     Real _Distance;
-    Real _WalkSpd;
     Vector3 _Direction;
     Vector3 _Destination;
     std::deque<Vector3> _WalkList;
-};
+    bool _Walking;
+    
+    const Real _WalkSpd = 50;
 
+public:
+ 
+
+};
 
 class BaseApplication : public ApplicationContext, public FrameListener, public InputListener
 
@@ -200,6 +258,9 @@ private:
     RenderWindow* _Window;
     Entity* _RobEntity;
     SceneNode* _RobNode;
+    Entity* _ObjEntity;
+    SceneNode* _ObjNode;
+    SceneNode* _RootNode;
     std::deque<Vector3> _WalkList;
 };
 
@@ -214,6 +275,9 @@ BaseApplication::BaseApplication() : ApplicationContext("OGREsamples") {
     _ParamsPanel = nullptr;
     _RobEntity = nullptr;
     _RobNode = nullptr;
+    _ObjEntity = nullptr;
+    _ObjNode = nullptr;
+    _RootNode = nullptr;
 }
 
 void BaseApplication::setup() {
@@ -266,6 +330,10 @@ void BaseApplication::setup() {
 
     // [entities]
 
+    // Root Node
+
+    _RootNode = _ScnMgr->getRootSceneNode();
+
     // Robot
 
     _RobEntity = _ScnMgr->createEntity("robot.mesh");
@@ -273,9 +341,6 @@ void BaseApplication::setup() {
     _RobNode->attachObject(_RobEntity);
 
     // Objects
-
-    Entity* _ObjEntity;
-    SceneNode* _ObjNode;
 
     _ObjEntity = _ScnMgr->createEntity("knot.mesh");
     _ObjNode = _ScnMgr->getRootSceneNode()->createChildSceneNode(Vector3(0, -10.0, 25.0));
@@ -312,23 +377,21 @@ void BaseApplication::setup() {
 
 
 void BaseApplication::createFramelistener() {
-    _FrameListener = new MyFrameListener(_RobEntity, _RobNode, _Window, _WalkList);
+    _FrameListener = new MyFrameListener(_ScnMgr, _RobEntity, _RobNode, _Window, _WalkList);
     _Root->addFrameListener(_FrameListener);
+    addInputListener(_FrameListener);
 }
 
 bool BaseApplication::keyPressed(const KeyboardEvent& evt) {
 
-    if (evt.keysym.sym == SDLK_ESCAPE)
+    int _key = evt.keysym.sym;
+
+    if (_key == SDLK_ESCAPE)
     {
         // We may need to set nullptrs here for the constructed pointers
         //_Character = nullptr;
         getRoot()->queueEndRendering();
     }
-    /*
-    if (_Character) {
-        _Character->injectKeyDown(evt);
-    }
-    */
 
     return true;
 }
