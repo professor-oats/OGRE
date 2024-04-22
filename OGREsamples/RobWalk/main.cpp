@@ -4,45 +4,16 @@
 // OGRE
 
 #include "Ogre.h"
-#include "SdkSample.h"
-#include "Sample.h"
-#include "SampleContext.h"
 #include "OgreInput.h"
-#include "OgreRTShaderSystem.h"
 #include "OgreApplicationContext.h"
-#include "OgreCameraMan.h"
-#include "SinbadCharacterController.h"
-#include "OgreTrays.h"
 #include "OgreRenderTarget.h"
-#include "OgreWindowEventUtilities.h"
 #include "OgreMath.h"
+#include "OgreFrameListener.h"
+#include "OgreInput.h"
+#include "OgreWindowEventUtilities.h"
 
 // Collision and physics
 #include "OgreBullet.h"
-
-// Terrain
-
-#include "OgreTerrain.h"
-#include "OgreTerrainGroup.h"
-#include "OgreTerrainQuadTreeNode.h"
-#include "OgreTerrainMaterialGeneratorA.h"
-#include "OgreTerrainPaging.h"
-
-// Define Terrain Paging
-
-#define TERRAIN_PAGE_MIN_X 0
-#define TERRAIN_PAGE_MIN_Y 0
-#define TERRAIN_PAGE_MAX_X 0
-#define TERRAIN_PAGE_MAX_Y 0
-
-// Define Terrain size
-
-#define TERRAIN_FILE_PREFIX String("testTerrain")
-#define TERRAIN_FILE_SUFFIX String("dat")
-#define TERRAIN_WORLD_SIZE 12000.0f
-#define TERRAIN_SIZE 513
-
-#define SHADOWS_IN_LOW_LOD_MATERIAL false
 
 using namespace Ogre;
 using namespace OgreBites;
@@ -69,6 +40,8 @@ public:
         _Direction = Vector3::ZERO;
         _Destination = Vector3::ZERO;
         _Walking = false;
+        _ObjNode = nullptr;
+        _ObjEntity = nullptr;
     }
 
     virtual ~MyFrameListener() {
@@ -111,28 +84,11 @@ public:
                 _Direction = Vector3::ZERO;
                 _Walking = false;
 
-                if (nextLocation())
-                {
-
-                    // First we get the Quaternion through getOrientation and multiply with UNIT_X
-                    // to fix the Quaternion to the RobNode vectoring on X-axis - Making them match.
-                    Vector3 src = _RobNode->getOrientation() * Vector3::UNIT_X;
-                    _Walking = true;
-
-                    // Check if we need a 180 turn
-
-                    if ((1.0 + src.dotProduct(_Direction)) < 0.0001)
-                    {
-                        _RobNode->yaw(Degree(180));
-                    }
-                    else
-                    {
-                        Quaternion quat = src.getRotationTo(_Direction);
-                        _RobNode->rotate(quat);
-                    }
+                if (nextLocation()) {
+                    rotateRobNodeTowardsDirection();
                 }
-                else
-                {
+
+                else {
                     _AnimationState = _RobEntity->getAnimationState("Idle");
                     _AnimationState->setLoop(true);
                     _AnimationState->setEnabled(true);
@@ -152,6 +108,25 @@ public:
 
     bool frameEnded(const FrameEvent& evt) override {
         return true;
+    }
+
+    void rotateRobNodeTowardsDirection() {
+        // First we get the Quaternion through getOrientation and multiply with UNIT_X
+        // to fix the Quaternion to the RobNode vectoring on X-axis - Making them match.
+        src = _RobNode->getOrientation() * Vector3::UNIT_X;
+        _Walking = true;
+
+        // Check if we need a 180 turn
+
+        if ((1.0 + src.dotProduct(_Direction)) < 0.0001)
+        {
+            _RobNode->yaw(Degree(180));
+        }
+        else
+        {
+            quat = src.getRotationTo(_Direction);
+            _RobNode->rotate(quat);
+        }
     }
 
     bool nextLocation() {
@@ -196,7 +171,18 @@ public:
         _ObjNode->attachObject(_ObjEntity);
         _ObjNode->setScale(0.1, 0.1, 0.1);
 
-        _WalkList.push_back(Vector3(thisX, thisY, thisZ));
+        if (_WalkList.empty()) {
+            _WalkList.push_back(Vector3(thisX, thisY, thisZ));
+            nextLocation();
+            rotateRobNodeTowardsDirection();
+            _AnimationState = _RobEntity->getAnimationState("Walk");
+            _AnimationState->setLoop(true);
+            _AnimationState->setEnabled(true);
+            _Walking = true;
+        }
+        else {
+            _WalkList.push_back(Vector3(thisX, thisY, thisZ));
+        }
 
     }
 
@@ -211,13 +197,15 @@ private:
     Real _Distance;
     Vector3 _Direction;
     Vector3 _Destination;
+    Vector3 src;
+    Quaternion quat;
     std::deque<Vector3> _WalkList;
     bool _Walking;
-    
-    const Real _WalkSpd = 50;
+
+    const Real _WalkSpd = 90;
 
 public:
- 
+
 
 };
 
@@ -230,8 +218,6 @@ public:
     BaseApplication();
 
     virtual ~BaseApplication() {
-        _TrayManager = nullptr;
-        delete _TrayManager;
         _RobEntity = nullptr;
         _RobNode = nullptr;
     }
@@ -252,9 +238,6 @@ private:
     Root* _Root;
     Camera* _Cam;
     MyFrameListener* _FrameListener;
-    SinbadCharacterController* _Character;
-    TrayManager* _TrayManager;
-    ParamsPanel* _ParamsPanel;
     RenderWindow* _Window;
     Entity* _RobEntity;
     SceneNode* _RobNode;
@@ -269,15 +252,13 @@ BaseApplication::BaseApplication() : ApplicationContext("OGREsamples") {
     _ScnMgr = nullptr;
     _Root = nullptr;
     _Cam = nullptr;
-    _Character = nullptr;
     _FrameListener = nullptr;
-    _TrayManager = nullptr;
-    _ParamsPanel = nullptr;
     _RobEntity = nullptr;
     _RobNode = nullptr;
     _ObjEntity = nullptr;
     _ObjNode = nullptr;
     _RootNode = nullptr;
+    _Window = nullptr;
 }
 
 void BaseApplication::setup() {
@@ -296,9 +277,6 @@ void BaseApplication::setup() {
     RTShader::ShaderGenerator* _Shadergen = RTShader::ShaderGenerator::getSingletonPtr();
     _Shadergen->addSceneManager(_ScnMgr);
 
-    OverlaySystem* _OverlaySystem = ApplicationContext::getOverlaySystem();
-    _ScnMgr->addRenderQueueListener(_OverlaySystem);
-
     // [scene settings]
 
     _ScnMgr->setAmbientLight(Ogre::ColourValue(1.0, 1.0, 1.0));
@@ -308,13 +286,10 @@ void BaseApplication::setup() {
     SceneNode* _CamNode = _ScnMgr->getRootSceneNode()->createChildSceneNode();
 
     _Cam = _ScnMgr->createCamera("myCam");
- 
+
     // Set viewport
 
     Viewport* _Vp = _Window->addViewport(_Cam);
-    _Vp->setMaterialScheme(MSN_SHADERGEN);
-    //_Vp->setBackgroundColour(Ogre::ColourValue(0, 0, 0));
-
 
     // Set aspect ratio and attach camera to node
 
@@ -367,12 +342,6 @@ void BaseApplication::setup() {
 
     createFramelistener();
 
-    // TrayManager
-
-    _TrayManager = new OgreBites::TrayManager("InterfaceName", _Window);
-    addInputListener(_TrayManager);
-    //_TrayManager->showFrameStats(TL_TOPLEFT);
-
 }
 
 
@@ -395,46 +364,6 @@ bool BaseApplication::keyPressed(const KeyboardEvent& evt) {
 
     return true;
 }
-
-/**
-bool BaseApplication::keyReleased(const KeyboardEvent& evt) {
-
-    if (_Character) {
-        _Character->injectKeyUp(evt);
-    }
-
-    return true;
-}
-
-bool BaseApplication::mouseMoved(const MouseMotionEvent& evt) {
-
-    if (_Character) {
-        _Character->injectMouseMove(evt);
-    }
-
-
-    return true;
-}
-
-bool BaseApplication::mouseWheelRolled(const MouseWheelEvent& evt) {
-
-    if (_Character) {
-        _Character->injectMouseWheel(evt);
-    }
-
-    return true;
-
-}
-
-bool BaseApplication::mousePressed(const MouseButtonEvent& evt) {
-
-    if (_Character) {
-        _Character->injectMouseDown(evt);
-    }
-
-    return true;
-}
-*/
 
 
 int main(int argc, char** argv)
