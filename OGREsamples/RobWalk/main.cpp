@@ -67,6 +67,7 @@ public:
         {
             if (nextLocation())
             {
+                rotateRobNodeTowardsDirection();
                 _AnimationState = _RobEntity->getAnimationState("Walk");
                 _AnimationState->setLoop(true);
                 _AnimationState->setEnabled(true);
@@ -80,8 +81,8 @@ public:
 
             if (_Distance <= 0.0)
             {
-                _RobNode->setPosition(_Destination);
-                _Direction = Vector3::ZERO;
+                _RobNode->setPosition(_Destination);  // Will store latest destination if walklist is empty?
+                //_Direction = Vector3::ZERO;
                 _Walking = false;
 
                 if (nextLocation()) {
@@ -171,18 +172,8 @@ public:
         _ObjNode->attachObject(_ObjEntity);
         _ObjNode->setScale(0.1, 0.1, 0.1);
 
-        if (_WalkList.empty()) {
-            _WalkList.push_back(Vector3(thisX, thisY, thisZ));
-            nextLocation();
-            rotateRobNodeTowardsDirection();
-            _AnimationState = _RobEntity->getAnimationState("Walk");
-            _AnimationState->setLoop(true);
-            _AnimationState->setEnabled(true);
-            _Walking = true;
-        }
-        else {
-            _WalkList.push_back(Vector3(thisX, thisY, thisZ));
-        }
+
+        _WalkList.push_back(Vector3(thisX, thisY, thisZ));
 
     }
 
@@ -225,12 +216,6 @@ public:
     void createFramelistener();
     void setup() override;
     bool keyPressed(const KeyboardEvent& evt) override;
-    /*
-    bool keyReleased(const KeyboardEvent& evt) override;
-    bool mouseMoved(const MouseMotionEvent& evt) override;
-    bool mouseWheelRolled(const MouseWheelEvent& evt) override;
-    bool mousePressed(const MouseButtonEvent& evt) override;
-    */
 
 private:
 
@@ -316,27 +301,27 @@ void BaseApplication::setup() {
     _RobNode->attachObject(_RobEntity);
 
     // Objects
-
+    /*
     _ObjEntity = _ScnMgr->createEntity("knot.mesh");
-    _ObjNode = _ScnMgr->getRootSceneNode()->createChildSceneNode(Vector3(0, -10.0, 25.0));
+    _ObjNode = _ScnMgr->getRootSceneNode()->createChildSceneNode(Vector3(500, -10.0, 25.0));
     _ObjNode->attachObject(_ObjEntity);
     _ObjNode->setScale(0.1, 0.1, 0.1);
 
     _ObjEntity = _ScnMgr->createEntity("knot.mesh");
-    _ObjNode = _ScnMgr->getRootSceneNode()->createChildSceneNode(Vector3(550.0, -10.0, 50.0));
+    _ObjNode = _ScnMgr->getRootSceneNode()->createChildSceneNode(Vector3(0, 0, 25.0));
     _ObjNode->attachObject(_ObjEntity);
     _ObjNode->setScale(0.1, 0.1, 0.1);
 
     _ObjEntity = _ScnMgr->createEntity("knot.mesh");
-    _ObjNode = _ScnMgr->getRootSceneNode()->createChildSceneNode(Vector3(-100.0, -10.0, -200.0));
+    _ObjNode = _ScnMgr->getRootSceneNode()->createChildSceneNode(Vector3(-100.0, -0, -200.0));
     _ObjNode->attachObject(_ObjEntity);
     _ObjNode->setScale(0.1, 0.1, 0.1);
-
+    */
     // [walklist vectors]
 
-    _WalkList.push_back(Vector3(550.0, 0, 50.0));
-    _WalkList.push_back(Vector3(-100.0, 0, -200.0));
-    _WalkList.push_back(Vector3(0, 0, 25.0));
+    //_WalkList.push_back(Vector3(-100.0, 0, -200.0));
+    //_WalkList.push_back(Vector3(500.0, -10, 25.0));
+    //_WalkList.push_back(Vector3(0, 0, 25.0));
 
     // Construct the framelistener
 
