@@ -32,7 +32,9 @@ class MyFrameListener : public FrameListener, public InputListener, public Windo
 public:
 
     MyFrameListener(SceneManager* inScnMgr, Entity* inEntity, SceneNode* inNode, RenderWindow* inWindow, std::deque<Vector3> inList) : _ScnMgr(inScnMgr), _RobEntity(inEntity), _RobNode(inNode), _Window(inWindow), _WalkList(inList) {
+
         WindowEventUtilities::addWindowEventListener(_Window, this);
+
         _AnimationState = _RobEntity->getAnimationState("Idle");
         _AnimationState->setLoop(true);
         _AnimationState->setEnabled(true);
@@ -42,6 +44,7 @@ public:
         _Walking = false;
         _ObjNode = nullptr;
         _ObjEntity = nullptr;
+        _VecFacing = Vector3::UNIT_X;  // Init as UNIT_X due to load mesh
     }
 
     virtual ~MyFrameListener() {
@@ -67,7 +70,7 @@ public:
         {
             if (nextLocation())
             {
-                rotateRobNodeTowardsDirection();
+                rotateRobNodeToDirection();
                 _AnimationState = _RobEntity->getAnimationState("Walk");
                 _AnimationState->setLoop(true);
                 _AnimationState->setEnabled(true);
@@ -81,12 +84,11 @@ public:
 
             if (_Distance <= 0.0)
             {
-                _RobNode->setPosition(_Destination);  // Will store latest destination if walklist is empty?
-                //_Direction = Vector3::ZERO;
+                _RobNode->setPosition(_Destination);  // Robot finished distance so update position
                 _Walking = false;
 
                 if (nextLocation()) {
-                    rotateRobNodeTowardsDirection();
+                    rotateRobNodeToDirection();
                 }
 
                 else {
@@ -111,22 +113,39 @@ public:
         return true;
     }
 
-    void rotateRobNodeTowardsDirection() {
-        // First we get the Quaternion through getOrientation and multiply with UNIT_X
-        // to fix the Quaternion to the RobNode vectoring on X-axis - Making them match.
-        src = _RobNode->getOrientation() * Vector3::UNIT_X;
+    /*Vector3 mDestination = mWalkList.front( );                    // mDestination is the next location
+  Vector3 mDirection = mDestination - mNode->getPosition();     // B-A = A->B (see ((Quaternion and Rotation Primer|#Vectors|vector questions)) above)
+  Vector3 src = mNode->getOrientation() * Vector3::UNIT_X;      // Orientation from initial direction
+  src.y = 0;                                                    // Ignore pitch difference angle
+  mDirection.y = 0;                                             
+  src.normalise();                                              
+  Real mDistance = mDirection.normalise( );                     // Both vectors modified so renormalize them
+  Quaternion quat = src.getRotationTo(mDirection);
+  mNode->rotate(quat);*/
+
+    void rotateRobNodeToDirection() {
+ 
+        // To make proper rotation we first must gain the orientation
+        // and multiply it with the default facing of the mesh
+        // this generates an offset rotation that we then use
+        // and caclulate to _Direction
+
+
+        robNodeOrientation = _RobNode->getOrientation() * _VecFacing;
         _Walking = true;
 
         // Check if we need a 180 turn
 
-        if ((1.0 + src.dotProduct(_Direction)) < 0.0001)
+        if ((1.0 + robNodeOrientation.dotProduct(_Direction)) < 0.0001)
         {
             _RobNode->yaw(Degree(180));
         }
         else
         {
-            quat = src.getRotationTo(_Direction);
-            _RobNode->rotate(quat);
+            robNodeQuatRotationToDirection = robNodeOrientation.getRotationTo(_Direction);
+            _RobNode->rotate(robNodeQuatRotationToDirection);
+            _VecFacing = _Direction;
+            _VecFacing.normalise();
         }
     }
 
@@ -188,8 +207,9 @@ private:
     Real _Distance;
     Vector3 _Direction;
     Vector3 _Destination;
-    Vector3 src;
-    Quaternion quat;
+    Vector3 _VecFacing;
+    Vector3 robNodeOrientation;
+    Quaternion robNodeQuatRotationToDirection;
     std::deque<Vector3> _WalkList;
     bool _Walking;
 
