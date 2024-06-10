@@ -39,12 +39,12 @@ public:
         _AnimationState->setLoop(true);
         _AnimationState->setEnabled(true);
         _Distance = 0;
-        _Direction = Vector3::ZERO;
+        _Direction = Vector3::UNIT_X;   // Init as UNIT_X due to load mesh
         _Destination = Vector3::ZERO;
+        directionNoY = Vector3::ZERO;
         _Walking = false;
         _ObjNode = nullptr;
         _ObjEntity = nullptr;
-        _VecFacing = Vector3::UNIT_X;  // Init as UNIT_X due to load mesh
     }
 
     virtual ~MyFrameListener() {
@@ -85,13 +85,15 @@ public:
             if (_Distance <= 0.0)
             {
                 _RobNode->setPosition(_Destination);  // Robot finished distance so update position
-                _Walking = false;
+
 
                 if (nextLocation()) {
                     rotateRobNodeToDirection();
+                    _Walking = true;
                 }
 
                 else {
+                    _Walking = false;
                     _AnimationState = _RobEntity->getAnimationState("Idle");
                     _AnimationState->setLoop(true);
                     _AnimationState->setEnabled(true);
@@ -131,22 +133,18 @@ public:
         // and caclulate to _Direction
 
 
-        robNodeOrientation = _RobNode->getOrientation() * _VecFacing;
-        _Walking = true;
+        //robNodeOrientation = _RobNode->getOrientation() * _Direction;
+
+        directionNoY = Vector3(_Direction.x, 0.0f, _Direction.z);
+        directionNoY.normalise();
+        _RobNode->resetOrientation();
+        _RobNode->setDirection(directionNoY, Node::TS_WORLD);
+        _RobNode->rotate(Vector3::UNIT_Y, Degree(90.0f), Node::TS_LOCAL);
 
         // Check if we need a 180 turn
 
-        if ((1.0 + robNodeOrientation.dotProduct(_Direction)) < 0.0001)
-        {
-            _RobNode->yaw(Degree(180));
-        }
-        else
-        {
-            robNodeQuatRotationToDirection = robNodeOrientation.getRotationTo(_Direction);
-            _RobNode->rotate(robNodeQuatRotationToDirection);
-            _VecFacing = _Direction;
-            _VecFacing.normalise();
-        }
+        //robNodeQuatRotationToDirection = robNodeOrientation.getRotationTo(_Direction);
+        //_RobNode->rotate(robNodeQuatRotationToDirection);
     }
 
     bool nextLocation() {
@@ -207,7 +205,7 @@ private:
     Real _Distance;
     Vector3 _Direction;
     Vector3 _Destination;
-    Vector3 _VecFacing;
+    Vector3 directionNoY;
     Vector3 robNodeOrientation;
     Quaternion robNodeQuatRotationToDirection;
     std::deque<Vector3> _WalkList;
